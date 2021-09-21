@@ -175,4 +175,9 @@ int add_bytes(uint8_t const message[], unsigned num_bytes);
 /// @return summation value
 int add_nibbles(uint8_t const message[], unsigned num_bytes);
 
+/// Convert HEX or DEC string to unsigned long HEX, DEC
+/// @param string input string
+/// @return value
+unsigned long str2int(char *string);
+
 #endif /* INCLUDE_UTIL_H_ */

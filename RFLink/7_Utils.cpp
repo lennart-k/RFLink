@@ -10,9 +10,9 @@
 */
 
 #include "7_Utils.h"
-// #include <stdlib.h>
-// #include <stdio.h>
-// #include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 
 uint8_t reverse8(uint8_t x)
 {
@@ -353,6 +353,11 @@ int add_nibbles(uint8_t const message[], unsigned num_bytes)
         result += (message[i] >> 4) + (message[i] & 0x0f);
     }
     return result;
+}
+
+unsigned long str2int(char *string)
+{
+    return (strtoul(string, NULL, 0));
 }
 
 // Unit testing
