@@ -355,11 +355,6 @@ int add_nibbles(uint8_t const message[], unsigned num_bytes)
     return result;
 }
 
-unsigned long str2int(char *string)
-{
-    return (strtoul(string, NULL, 0));
-}
-
 // Unit testing
 #ifdef _TEST
 int main(int argc, char **argv)
