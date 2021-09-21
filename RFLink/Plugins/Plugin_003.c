@@ -616,18 +616,23 @@ boolean Plugin_003(byte function, char *string)
 #endif //PLUGIN_003
 
 #ifdef PLUGIN_TX_003
+#include "../1_Radio.h"
+#include "../3_Serial.h"
+#include "../7_Utils.h"
+
 void Arc_Send(unsigned long address);        // sends 0 and float
 void NArc_Send(unsigned long bitstream);     // sends 0 and 1
 void TriState_Send(unsigned long bitstream); // sends 0, 1 and float
 
-boolean PluginTX_003(byte function, char *string)
+/// @param function unused
+/// @param string nothing important
+bool PluginTX_003(byte function, char *string)
 {
-   boolean success = false;
    unsigned long bitstream = 0L;
    byte command = 0;
    uint32_t housecode = 0;
    uint32_t unitcode = 0;
-   byte Home = 0;    // KAKU home A..P
+   byte home = 0;    // KAKU home A..P
    byte Address = 0; // KAKU Address 1..16
    byte c = 0;
    byte x = 0;
@@ -639,262 +644,30 @@ boolean PluginTX_003(byte function, char *string)
    //012345678901234567890
    // ==========================================================================
    if (strncasecmp(InputBuffer_Serial + 3, "KAKU;", 5) == 0)
-   { // KAKU Command eg. Kaku;A1;On
+   { // KAKU Command eg. 10;kaku;00004c;10;off;
+
       if (InputBuffer_Serial[14] != ';')
          return false;
+      InputBuffer_Serial[14] = NULL;
 
-      x = 15; // character pointer
-      InputBuffer_Serial[10] = 0x30;
-      InputBuffer_Serial[11] = 0x78;           // Get home from hexadecimal value
-      InputBuffer_Serial[14] = 0x00;           // Get home from hexadecimal value
-      Home = str2int(InputBuffer_Serial + 10); // KAKU home A is intern 0
-      if (Home < 0x51)                         // take care of upper/lower case
-         Home = Home - 'A';
-      else if (Home < 0x71) // take care of upper/lower case
-         Home = Home - 'a';
-      else
-      {
-         return false; // invalid value
-      }
+      home = strtoul(InputBuffer_Serial + 10, NULL, 16) - 'A';
 
-      while ((c = InputBuffer_Serial[x++]) != ';')
-      { // Address: 1 to 16/32
-         if (c >= '0' && c <= '9')
-         {
-            Address = Address * 10;
-            Address = Address + c - '0';
-         }
-         if (c >= 'a' && c <= 'f')
-         {
-            Address = Address + (c - 'a' + 10);
-         } // 31?
-         if (c >= 'A' && c <= 'F')
-         {
-            Address = Address + (c - 'A' + 10);
-         } // 51?
-      }
-      //if (Address==0) {                        // group command is given: 0=all
-      //   command=2;                            // Set 2nd bit for group.
-      //   bitstream=Home;
-      //} else {
-      //   bitstream= Home | ((Address-1)<<4);
-      //}
+      InputBuffer_Serial[17] = NULL;
+      byte group = strtoul(InputBuffer_Serial + 15, NULL, 16) - 1;
+      command = str2cmd(InputBuffer_Serial + 18) == VALUE_ON;
 
-      bitstream = Home | ((Address - 1) << 4);
-      command |= str2cmd(InputBuffer_Serial + x) == VALUE_ON;  // ON/OFF command
-      bitstream = bitstream | (0x600 | ((command & 1) << 11)); // create the bitstream
-      //Serial.println(bitstream);
+      byte inverted_home = 0;
+      inverted_home |= (home & 0b0001) ? 0b1000 : 0;
+      inverted_home |= (home & 0b0010) ? 0b0100 : 0;
+      inverted_home |= (home & 0b0100) ? 0b0010 : 0;
+      inverted_home |= (home & 0b1000) ? 0b0001 : 0;
+      bitstream = (inverted_home << 8 | group << 4 | 0b000000000110 | command);
+
       Arc_Send(bitstream);
-      success = true;
+      return true;
       // --------------- END KAKU SEND ------------
    }
-   else
-       // ==========================================================================
-       //10;AB400D;00004d;1;OFF;
-       //012345678901234567890
-       // ==========================================================================
-       if (strncasecmp(InputBuffer_Serial + 3, "AB400D;", 7) == 0)
-   { // KAKU Command eg. Kaku;A1;On
-      if (InputBuffer_Serial[16] != ';')
-         return false;
-      x = 17; // character pointer
-      InputBuffer_Serial[12] = 0x30;
-      InputBuffer_Serial[13] = 0x78;           // Get home from hexadecimal value
-      InputBuffer_Serial[16] = 0x00;           // Get home from hexadecimal value
-      Home = str2int(InputBuffer_Serial + 12); // KAKU home A is intern 0
-      if (Home < 0x61)                         // take care of upper/lower case
-         Home = Home - 'A';
-      else if (Home < 0x81) // take care of upper/lower case
-         Home = Home - 'a';
-      else
-      {
-         return false; // invalid value
-      }
-      while ((c = InputBuffer_Serial[x++]) != ';')
-      { // Address: 1 to 16/32
-         if (c >= '0' && c <= '9')
-         {
-            Address = Address * 10;
-            Address = Address + c - '0';
-         }
-      }
-      command = str2cmd(InputBuffer_Serial + x) == VALUE_ON; // ON/OFF command
-      housecode = ~Home;
-      housecode &= 0x0000001FL;
-      unitcode = Address;
-      if ((unitcode >= 1) && (unitcode <= 5))
-      {
-         bitstream = housecode & 0x0000001FL;
-         if (unitcode == 1)
-            bitstream |= 0x000003C0L;
-         else if (unitcode == 2)
-            bitstream |= 0x000003A0L;
-         else if (unitcode == 3)
-            bitstream |= 0x00000360L;
-         else if (unitcode == 4)
-            bitstream |= 0x000002E0L;
-         else if (unitcode == 5)
-            bitstream |= 0x000001E0L;
-
-         if (command)
-            bitstream |= 0x00000800L;
-         else
-            bitstream |= 0x00000400L;
-      }
-      //Serial.println(bitstream);
-      Arc_Send(bitstream);
-      success = true;
-   }
-   else
-       // --------------- END SARTANO SEND ------------
-       // ==========================================================================
-       //10;PT2262;000041;1;OFF;
-       //012345678901234567890
-       // ==========================================================================
-       if (strncasecmp(InputBuffer_Serial + 3, "PT2262;", 7) == 0)
-   { // KAKU Command eg. Kaku;A1;On
-      if (InputBuffer_Serial[16] != ';')
-         return false;
-      x = 17; // character pointer
-      InputBuffer_Serial[12] = 0x30;
-      InputBuffer_Serial[13] = 0x78;           // Get home from hexadecimal value
-      InputBuffer_Serial[16] = 0x00;           // Get home from hexadecimal value
-      Home = str2int(InputBuffer_Serial + 12); // KAKU home A is intern 0
-      if (Home < 0x61)                         // take care of upper/lower case
-         Home = Home - 'A';
-      else if (Home < 0x81) // take care of upper/lower case
-         Home = Home - 'a';
-      else
-      {
-         return false; // invalid value
-      }
-      while ((c = InputBuffer_Serial[x++]) != ';')
-      { // Address: 1 to 16/32
-         if (c >= '0' && c <= '9')
-         {
-            Address = Address * 10;
-            Address = Address + c - '0';
-         }
-      }
-      // reconstruct bitstream reversed order so that most right bit can be send first
-      command = str2cmd(InputBuffer_Serial + x) == VALUE_ON; // ON/OFF command
-      housecode = ~Home;
-      housecode &= 0x00000007L;
-      housecode = (housecode) << 1;
-      if (command)
-         bitstream |= 0x00000100L;
-      NArc_Send(bitstream); // send 24 bits tristate signal (0/1/f)
-      success = true;
-   }
-   else
-       // --------------- END Select Remote SEND ------------
-       // ==========================================================================
-       //10;TriState;00004d;1;OFF;
-       //10;TriState;08000a;2;OFF;       20;1B;TriState;ID=08000a;SWITCH=2;CMD=OFF;
-       //10;TriState;0a6980;2;OFF;
-       //01234567890123456789012
-       // ==========================================================================
-       if (strncasecmp(InputBuffer_Serial + 3, "TriState;", 9) == 0)
-   { // KAKU Command eg. Kaku;A1;On
-      if (InputBuffer_Serial[18] != ';')
-         return false;
-      x = 19; // character pointer
-      InputBuffer_Serial[10] = 0x30;
-      InputBuffer_Serial[11] = 0x78;                // Get home from hexadecimal value
-      InputBuffer_Serial[18] = 0x00;                // Get home from hexadecimal value
-      bitstream = str2int(InputBuffer_Serial + 10); // KAKU home A is intern 0
-      bitstream = (bitstream << 4);
-
-      // 11^00^01=10   11^10^11=01   11^11^00=00
-      while ((c = InputBuffer_Serial[x++]) != ';')
-      { // Address: 0/1/2
-         if (c >= '0' && c <= '9')
-         {
-            Address = Address * 10;
-            Address = Address + c - '0';
-         }
-      }
-      Address = (Address)&0x03;                  // only use 3 bits
-      command = str2cmd(InputBuffer_Serial + x); // ON/OFF command
-      if (command == VALUE_ON)
-      { // on
-         if (Address == 0x0)
-            bitstream |= 0x0000000bL; // 0011
-         if (Address == 0x1)
-            bitstream |= 0x0000000cL; // 1011
-         if (Address == 0x2)
-            bitstream |= 0x00000001L; // 0001
-      }
-      else
-      { // off
-         if (Address == 0x0)
-            bitstream |= 0x0000000cL; // 1100
-         if (Address == 0x1)
-            bitstream |= 0x0000000eL; // 1110
-         if (Address == 0x2)
-            bitstream |= 0x00000004L; // 0100
-      }
-      TriState_Send(bitstream);
-      success = true;
-   }
-   else
-       // --------------- END TRISTATE SEND ------------
-       // ==========================================================================
-       //10;Impuls;00004d;1;OFF;
-       //012345678901234567890
-       // ==========================================================================
-       if (strncasecmp(InputBuffer_Serial + 3, "Impuls;", 7) == 0)
-   { // KAKU Command eg. Kaku;A1;On
-      if (InputBuffer_Serial[16] != ';')
-         return false;
-      x = 17; // character pointer
-      InputBuffer_Serial[12] = 0x30;
-      InputBuffer_Serial[13] = 0x78;           // Get home from hexadecimal value
-      InputBuffer_Serial[16] = 0x00;           // Get home from hexadecimal value
-      Home = str2int(InputBuffer_Serial + 12); // KAKU home A is intern 0
-      if (Home < 0x61)                         // take care of upper/lower case
-         Home = Home - 'A';
-      else if (Home < 0x81) // take care of upper/lower case
-         Home = Home - 'a';
-      else
-      {
-         return false; // invalid value
-      }
-      while ((c = InputBuffer_Serial[x++]) != ';')
-      { // Address: 1 to 16/32
-         if (c >= '0' && c <= '9')
-         {
-            Address = Address * 10;
-            Address = Address + c - '0';
-         }
-      }
-      command = str2cmd(InputBuffer_Serial + x) == VALUE_ON; // ON/OFF command
-      housecode = ~Home;
-      housecode &= 0x0000001FL;
-      unitcode = Address;
-      if ((unitcode >= 1) && (unitcode <= 5))
-      {
-         bitstream = housecode & 0x0000001FL;
-         if (unitcode == 1)
-            bitstream |= 0x000003C0L;
-         else if (unitcode == 2)
-            bitstream |= 0x000003A0L;
-         else if (unitcode == 3)
-            bitstream |= 0x00000360L;
-         else if (unitcode == 4)
-            bitstream |= 0x000002E0L;
-         else if (unitcode == 5)
-            bitstream |= 0x000001E0L;
-
-         if (command)
-            bitstream |= 0x00000800L;
-         else
-            bitstream |= 0x00000400L;
-      }
-      TriState_Send(bitstream);
-      success = true;
-   }
-   return success;
+   return false;
 }
 
 //#define KAKU_T                     390 //420 // 370              // 370? 350 us
@@ -902,25 +675,26 @@ boolean PluginTX_003(byte function, char *string)
 
 void Arc_Send(unsigned long bitstream)
 {
-   int fpulse = 360; // Pulse width in microseconds
+   int fpulse = 370; // Pulse width in microseconds
    int fretrans = 8; // Number of code retransmissions
    uint32_t fdatabit;
-   uint32_t fdatamask = 0x00000001;
+   uint32_t fdatamask;
    uint32_t fsendbuff;
 
    for (int nRepeat = 0; nRepeat <= fretrans; nRepeat++)
    {
       fsendbuff = bitstream;
+      fdatamask = 0b100000000000;
       // Send command
 
       for (int i = 0; i < 12; i++)
       { // Arc packet is 12 bits
          // read data bit
          fdatabit = fsendbuff & fdatamask; // Get most right bit
-         fsendbuff = (fsendbuff >> 1);     // Shift right
+         fdatamask = fdatamask >> 1;
 
          // PT2262 data can be 0, 1 or float. Only 0 and float is used by regular ARC
-         if (fdatabit != fdatamask)
+         if (!fdatabit)
          { // Write 0
             digitalWrite(PIN_RF_TX_DATA, HIGH);
             delayMicroseconds(fpulse * 1);
