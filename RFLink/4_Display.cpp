@@ -341,7 +341,6 @@ void display_RGBW(unsigned int input)
   strcat(pbuffer, dbuffer);
 }
 
-
 // Channel
 void display_CHAN(byte channel)
 {
@@ -514,29 +513,29 @@ boolean retrieve_End()
 \*********************************************************************************************/
 int str2cmd(char *command)
 {
-  if (strcasecmp(command, "ON") == 0)
+  if (strncasecmp(command, "ON", 2) == 0)
     return VALUE_ON;
-  if (strcasecmp(command, "OFF") == 0)
+  if (strncasecmp(command, "OFF", 3) == 0)
     return VALUE_OFF;
-  if (strcasecmp(command, "ALLON") == 0)
+  if (strncasecmp(command, "ALLON", 5) == 0)
     return VALUE_ALLON;
-  if (strcasecmp(command, "ALLOFF") == 0)
+  if (strncasecmp(command, "ALLOFF", 6) == 0)
     return VALUE_ALLOFF;
-  if (strcasecmp(command, "PAIR") == 0)
+  if (strncasecmp(command, "PAIR", 4) == 0)
     return VALUE_PAIR;
-  if (strcasecmp(command, "DIM") == 0)
+  if (strncasecmp(command, "DIM", 3) == 0)
     return VALUE_DIM;
-  if (strcasecmp(command, "BRIGHT") == 0)
+  if (strncasecmp(command, "BRIGHT", 6) == 0)
     return VALUE_BRIGHT;
-  if (strcasecmp(command, "UP") == 0)
+  if (strncasecmp(command, "UP", 2) == 0)
     return VALUE_UP;
-  if (strcasecmp(command, "DOWN") == 0)
+  if (strncasecmp(command, "DOWN", 4) == 0)
     return VALUE_DOWN;
-  if (strcasecmp(command, "STOP") == 0)
+  if (strncasecmp(command, "STOP", 4) == 0)
     return VALUE_STOP;
-  if (strcasecmp(command, "CONFIRM") == 0)
+  if (strncasecmp(command, "CONFIRM", 7) == 0)
     return VALUE_CONFIRM;
-  if (strcasecmp(command, "LIMIT") == 0)
+  if (strncasecmp(command, "LIMIT", 5) == 0)
     return VALUE_LIMIT;
   return false;
 }
